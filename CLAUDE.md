@@ -18,3 +18,6 @@ make api # runs the api
 ```
 
 All new packages must first be added to the requirements.txt file, then you run `make install` to sync your dependencies.
+
+# Server Access
+- ssh into the "server" using the following command: `ssh -i ~/.ssh/digitalocean_key app@services.ouachitalabs.com`

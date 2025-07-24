@@ -17,7 +17,6 @@ from rss.ai import route_to_openai
 from rss.parse import fetch_new_articles
 
 url = 'https://www.google.com/alerts/feeds/12746746318701075297/17060129154597278148'
-#url = 'https://news.ycombinator.com/rss'
 
 logger.info(f"Starting RSS processing for URL: {url}")
 new_articles = fetch_new_articles(url)
@@ -239,7 +238,7 @@ if popular:
     top_tag = popular[0][0]
     articles = get_articles_by_tag(top_tag)
     logger.info(f"Found {len(articles)} articles tagged with '{top_tag}'")
-    
+
     if articles:
         logger.debug(f"Sample articles for '{top_tag}':")
         for article in articles[:3]:  # Show first 3

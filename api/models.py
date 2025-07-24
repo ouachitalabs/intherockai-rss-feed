@@ -7,6 +7,7 @@ class Article(BaseModel):
     link: str # TODO - make this a true pydantic URL type
     published: datetime.datetime | None = None
     updated: datetime.datetime | None = None
+    source: str | None = None
     tags: list[str] = []
 
 class ArticleCollection(BaseModel):

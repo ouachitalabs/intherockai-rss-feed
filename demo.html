@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Feed API Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .layout {
+            display: flex;
+            gap: 20px;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+            flex-shrink: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        select, button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .article {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .article:last-child {
+            border-bottom: none;
+        }
+        .article h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .article a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .article a:hover {
+            text-decoration: underline;
+        }
+        .summary {
+            color: #666;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        .tags {
+            margin-top: 8px;
+        }
+        .tag {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .meta {
+            color: #888;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .source {
+            color: #007bff;
+            font-size: 12px;
+            margin-top: 3px;
+            font-weight: 500;
+        }
+        .source::before {
+            content: "📡 ";
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .pagination {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .sidebar h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .tag-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .tag-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .tag-item:hover {
+            background-color: #f8f9fa;
+            margin: 0 -10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+        }
+        .tag-item.active {
+            background-color: #e3f2fd;
+            margin: 0 -10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .tag-name {
+            color: #333;
+            font-size: 14px;
+        }
+        .tag-count {
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .clear-filter {
+            margin-top: 15px;
+            padding: 8px 12px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+        }
+        .clear-filter:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <h2>Filter by Tags</h2>
+            <ul class="tag-list" id="tagList">
+                <li class="tag-item active" onclick="selectTag('')">
+                    <span class="tag-name">All Articles</span>
+                    <span class="tag-count" id="totalCount">0</span>
+                </li>
+            </ul>
+            <button class="clear-filter" onclick="resetFilter()">Clear Filter</button>
+        </div>
+        
+        <div class="container">
+            <h1>News Feed API Demo</h1>
+            
+            <div class="filters">
+                <label for="tagFilter">Filter by tag:</label>
+                <select id="tagFilter">
+                    <option value="">All articles</option>
+                </select>
+                <button onclick="loadArticles(true)">Apply Filter</button>
+                <button onclick="resetFilter()">Clear</button>
+            </div>
+
+            <div id="articles"></div>
+            
+            <div class="pagination">
+                <button id="loadMoreBtn" onclick="loadMore()" disabled>Load More</button>
+            </div>
+        </div>
+    </div></body>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentOffset = 0;
+        let currentTag = '';
+        let isLoading = false;
+
+        // Load available tags
+        async function loadTags() {
+            try {
+                const [tagsResponse, healthResponse] = await Promise.all([
+                    fetch(`${API_BASE}/tags`),
+                    fetch(`${API_BASE}/health`)
+                ]);
+                
+                const tagsData = await tagsResponse.json();
+                const healthData = await healthResponse.json();
+                const select = document.getElementById('tagFilter');
+                const tagList = document.getElementById('tagList');
+                
+                // Get total article count from health endpoint
+                document.getElementById('totalCount').textContent = healthData.article_count;
+                
+                // Populate dropdown
+                tagsData.tags.forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag.name;
+                    option.textContent = tag.name;
+                    select.appendChild(option);
+                });
+                
+                // Populate sidebar
+                tagsData.tags.forEach(tag => {
+                    const li = document.createElement('li');
+                    li.className = 'tag-item';
+                    li.onclick = () => selectTag(tag.name);
+                    li.innerHTML = `
+                        <span class="tag-name">${tag.name}</span>
+                        <span class="tag-count">${tag.count}</span>
+                    `;
+                    tagList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Failed to load tags:', error);
+            }
+        }
+
+        // Load articles
+        async function loadArticles(reset = false) {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'Loading...';
+
+            if (reset) {
+                currentOffset = 0;
+                document.getElementById('articles').innerHTML = '';
+            }
+
+            const tagFilter = document.getElementById('tagFilter').value;
+            currentTag = tagFilter;
+
+            try {
+                let url = `${API_BASE}/articles?limit=10&offset=${currentOffset}`;
+                if (tagFilter) {
+                    url += `&tag=${encodeURIComponent(tagFilter)}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                displayArticles(data.articles, reset);
+                
+                // Enable load more if we got a full batch
+                if (data.articles.length === 10) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.textContent = 'Load More';
+                    currentOffset += 10;
+                } else {
+                    loadMoreBtn.textContent = 'No more articles';
+                }
+
+            } catch (error) {
+                const articlesDiv = document.getElementById('articles');
+                if (reset) articlesDiv.innerHTML = '';
+                articlesDiv.innerHTML += `<div class="error">Failed to load articles: ${error.message}</div>`;
+            }
+
+            isLoading = false;
+        }
+
+        // Display articles
+        function displayArticles(articles, reset = false) {
+            const articlesDiv = document.getElementById('articles');
+            
+            if (reset) {
+                articlesDiv.innerHTML = '';
+            }
+
+            if (articles.length === 0 && reset) {
+                articlesDiv.innerHTML = '<div class="loading">No articles found</div>';
+                return;
+            }
+
+            articles.forEach(article => {
+                const articleDiv = document.createElement('div');
+                articleDiv.className = 'article';
+                
+                const publishedDate = article.published ? 
+                    new Date(article.published).toLocaleDateString() : 'Unknown date';
+
+                articleDiv.innerHTML = `
+                    <h3><a href="${article.link}" target="_blank">${article.title}</a></h3>
+                    ${article.summary ? `<div class="summary">${article.summary}</div>` : ''}
+                    <div class="tags">
+                        ${article.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                    <div class="meta">Published: ${publishedDate}</div>
+                    ${article.source ? `<div class="source">${article.source}</div>` : ''}
+                `;
+                
+                articlesDiv.appendChild(articleDiv);
+            });
+        }
+
+        // Load more articles
+        function loadMore() {
+            loadArticles(false);
+        }
+
+        // Select tag from sidebar
+        function selectTag(tagName) {
+            // Update dropdown
+            document.getElementById('tagFilter').value = tagName;
+            
+            // Update sidebar active state
+            document.querySelectorAll('.tag-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            if (tagName === '') {
+                document.querySelector('.tag-item').classList.add('active');
+            } else {
+                document.querySelectorAll('.tag-item').forEach(item => {
+                    if (item.querySelector('.tag-name').textContent === tagName) {
+                        item.classList.add('active');
+                    }
+                });
+            }
+            
+            loadArticles(true);
+        }
+
+        // Reset filter
+        function resetFilter() {
+            selectTag('');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTags();
+            loadArticles(true);
+        });
+    </script>
+</body>
+</html>
