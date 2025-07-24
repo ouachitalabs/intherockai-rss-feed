@@ -5,7 +5,12 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from .models import Article, ArticleCollection
 
-app = FastAPI(title="News Feed API", description="Read-only API for news feed with article pagination and tag filtering")
+app = FastAPI(
+    title="News Feed API", 
+    description="Read-only API for news feed with article pagination and tag filtering",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 # Add CORS middleware
 app.add_middleware(
