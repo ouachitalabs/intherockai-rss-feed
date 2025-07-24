@@ -1,5 +1,13 @@
 import sqlite3
+import logging
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configure SQLite to handle datetime strings
 sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
@@ -8,26 +16,27 @@ sqlite3.register_converter("TIMESTAMP", lambda s: datetime.fromisoformat(s.decod
 from rss.ai import route_to_openai
 from rss.parse import fetch_new_articles
 
-#url = 'https://www.google.com/alerts/feeds/12746746318701075297/17060129154597278148'
-url = 'https://news.ycombinator.com/rss'
+url = 'https://www.google.com/alerts/feeds/12746746318701075297/17060129154597278148'
+#url = 'https://news.ycombinator.com/rss'
+
+logger.info(f"Starting RSS processing for URL: {url}")
 new_articles = fetch_new_articles(url)
 
 if not new_articles.articles:
-    print("No new articles found")
+    logger.warning("No new articles found, exiting")
     exit(1)
 
-print("New Articles: ", new_articles.model_dump_json(indent=2))
+logger.info(f"Found {len(new_articles.articles)} new articles")
 
 tagged = route_to_openai(new_articles)
 
 if not tagged or not tagged.articles:
-    print("Error: NO TAGGED ARTICLES")
+    logger.error("Failed to get tagged articles from OpenAI")
     exit(1)
 
-print("Tagged RSS: ")
-print(tagged.model_dump_json(indent=2))
+logger.info(f"Successfully tagged {len(tagged.articles)} articles")
 
-print("Load to the database: ")
+logger.info("Loading articles to database")
 
 # Create normalized database schema
 CREATE_TABLES_SQL = [
@@ -76,6 +85,7 @@ def _get_or_create_tag(cursor, tag_name):
     return cursor.lastrowid
 
 def load_articles_to_db(tagged_data, db_path="articles.db"):
+    logger.info(f"Connecting to database: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -83,12 +93,14 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
     cursor.execute("PRAGMA foreign_keys = ON")
 
     # Create tables
+    logger.debug("Creating database tables if they don't exist")
     for table_sql in CREATE_TABLES_SQL:
         cursor.execute(table_sql)
 
     articles_loaded = 0
 
     # Insert articles and tags
+    logger.info(f"Processing {len(tagged_data.articles)} articles for database insertion")
     for article in tagged_data.articles:
         try:
             # Insert or update article
@@ -113,6 +125,7 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
             cursor.execute("DELETE FROM article_tags WHERE article_id = ?", (article_id,))
 
             # Process tags
+            logger.debug(f"Processing {len(article.tags)} tags for article: {article.title[:50]}")
             for tag_name in article.tags:
                 if tag_name and tag_name.strip():
                     tag_name = tag_name.strip()
@@ -128,15 +141,16 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
                         """, (article_id, tag_id))
                     except sqlite3.IntegrityError:
                         # Tag already exists for this article, skip
-                        pass
+                        logger.debug(f"Tag '{tag_name}' already exists for article, skipping")
 
             articles_loaded += 1
 
         except sqlite3.Error as e:
-            print(f"Error inserting article {article.title}: {e}")
+            logger.error(f"Error inserting article '{article.title}': {e}")
             continue
 
     conn.commit()
+    logger.debug("Database transaction committed")
 
     # Get counts for reporting
     article_count = cursor.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
@@ -144,8 +158,8 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
 
     conn.close()
 
-    print(f"Successfully loaded {articles_loaded} articles to database.")
-    print(f"Total articles: {article_count}, Total unique tags: {tag_count}")
+    logger.info(f"Successfully loaded {articles_loaded} articles to database")
+    logger.info(f"Total articles in database: {article_count}, Total unique tags: {tag_count}")
 
 def get_articles_by_tag(tag_name, db_path="articles.db"):
     """Get all articles associated with a specific tag"""
@@ -204,29 +218,31 @@ def get_popular_tags(limit=10, db_path="articles.db"):
 try:
     load_articles_to_db(tagged)
 except Exception as e:
-    print(f"Error loading articles to database: {e}")
+    logger.error(f"Error loading articles to database: {e}")
+    exit(1)
 
-# Demonstrate the new querying capabilities
-print("\n" + "="*50)
-print("TAG ANALYTICS")
-print("="*50)
+# Generate analytics
+logger.info("Generating tag analytics")
 
 # Show tag counts
-print("\nTag counts:")
 tag_counts = get_tag_counts()
-for tag_name, count in tag_counts:
-    print(f"  {tag_name}: {count} articles")
+logger.info(f"Found {len(tag_counts)} unique tags")
 
 # Show popular tags
-print("\nTop 5 popular tags:")
 popular = get_popular_tags(5)
-for tag_name, count in popular:
-    print(f"  {tag_name}: {count} articles")
-
-# Show articles for a specific tag (if any exist)
 if popular:
+    logger.info("Top 5 popular tags:")
+    for tag_name, count in popular:
+        logger.info(f"  {tag_name}: {count} articles")
+
+    # Show articles for most popular tag
     top_tag = popular[0][0]
-    print(f"\nArticles tagged with '{top_tag}':")
     articles = get_articles_by_tag(top_tag)
-    for article in articles[:3]:  # Show first 3
-        print(f"  - {article[1][:60]}...")  # title truncated
+    logger.info(f"Found {len(articles)} articles tagged with '{top_tag}'")
+    
+    if articles:
+        logger.debug(f"Sample articles for '{top_tag}':")
+        for article in articles[:3]:  # Show first 3
+            logger.debug(f"  - {article[1][:60]}...")
+
+logger.info("RSS processing completed successfully")
