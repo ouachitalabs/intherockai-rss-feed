@@ -1,5 +1,5 @@
 fastapi
 openai==1.97.1
-#feedparser>=6,<7
-#python-dateutil>=2.8.0
+feedparser>=6,<7
+python-dateutil>=2.8.0
 requests
