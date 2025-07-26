@@ -1,12 +1,41 @@
 import sqlite3
 import logging
 from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
+import os
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging with both console and file handlers
+def setup_logging():
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Set up root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    # File handler with 24-hour rotation
+    file_handler = TimedRotatingFileHandler(
+        filename='logs/rss_processing.log',
+        when='midnight',
+        interval=1,
+        backupCount=1,  # Keep only 1 backup (24h)
+        encoding='utf-8'
+    )
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+# Set up logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Configure SQLite to handle datetime strings
