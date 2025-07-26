@@ -106,8 +106,8 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
         return None
 
 
-def route_to_openai(article_collection: ArticleCollection) -> Optional[ArticleCollection]:
-    """Send ArticleCollection to OpenAI for tagging in batches of 10"""
+def route_to_openai(article_collection: ArticleCollection, db_path: str = "articles.db") -> Optional[ArticleCollection]:
+    """Send ArticleCollection to OpenAI for tagging in batches of 10 and save each batch to database"""
     if not client:
         logger.error("OpenAI client not initialized")
         return None
@@ -115,6 +115,12 @@ def route_to_openai(article_collection: ArticleCollection) -> Optional[ArticleCo
     if not article_collection or not article_collection.articles:
         logger.warning("Empty article collection provided")
         return ArticleCollection(articles=[])
+
+    # Import database functions
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from database import load_articles_to_db
 
     articles = article_collection.articles
     total_articles = len(articles)
@@ -134,6 +140,13 @@ def route_to_openai(article_collection: ArticleCollection) -> Optional[ArticleCo
         batch_result = _process_batch(batch, i)
         
         if batch_result and batch_result.articles:
+            # Save this batch to database immediately
+            try:
+                load_articles_to_db(batch_result, db_path)
+                logger.info(f"Saved batch {i} with {len(batch_result.articles)} articles to database")
+            except Exception as e:
+                logger.error(f"Failed to save batch {i} to database: {e}")
+            
             all_tagged_articles.extend(batch_result.articles)
             logger.debug(f"Added {len(batch_result.articles)} articles from batch {i}")
         else:
