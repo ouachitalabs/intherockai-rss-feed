@@ -350,7 +350,8 @@
                     new Date(article.published).toLocaleDateString() : 'Unknown date';
 
                 const imageHtml = article.og_image ? 
-                    `<img src="${article.og_image}" alt="${article.title}" class="article-image" onerror="this.style.display='none'">` : '';
+                    `<img src="${article.og_image}" alt="${article.title}" class="article-image" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/9/9d/Flag_of_Arkansas.svg'">` : 
+                    `<img src="https://upload.wikimedia.org/wikipedia/commons/9/9d/Flag_of_Arkansas.svg" alt="Arkansas Flag" class="article-image">`;
                 
                 articleDiv.innerHTML = `
                     ${imageHtml}
