@@ -119,4 +119,17 @@ if popular:
         for article in articles[:3]:  # Show first 3
             logger.debug(f"  - {article[1][:60]}...")
 
+# Send email notification if new articles were processed
+if all_articles:
+    logger.info("Sending email notification for new articles")
+    try:
+        from email_notifications import send_new_articles_email
+        email_sent = send_new_articles_email(all_articles)
+        if email_sent:
+            logger.info("Email notification sent successfully")
+        else:
+            logger.warning("Email notification failed to send")
+    except Exception as e:
+        logger.error(f"Error sending email notification: {e}")
+
 logger.info("RSS processing completed successfully")
