@@ -64,7 +64,7 @@ def get_articles(
     try:
         if tag:
             query = """
-                SELECT DISTINCT a.id, a.title, a.summary, a.link, a.published, a.updated, a.source
+                SELECT DISTINCT a.id, a.title, a.summary, a.link, a.published, a.updated, a.source, a.og_image
                 FROM articles a
                 JOIN article_tags at ON a.id = at.article_id
                 JOIN tags t ON at.tag_id = t.id
@@ -75,7 +75,7 @@ def get_articles(
             cursor = conn.execute(query, (tag, limit, offset))
         else:
             query = """
-                SELECT id, title, summary, link, published, updated, source
+                SELECT id, title, summary, link, published, updated, source, og_image
                 FROM articles
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
@@ -92,6 +92,7 @@ def get_articles(
                 published=parse_datetime(row["published"]),
                 updated=parse_datetime(row["updated"]),
                 source=row["source"],
+                og_image=row["og_image"],
                 tags=tags
             )
             articles.append(article)

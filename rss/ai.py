@@ -36,7 +36,9 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
                 'summary': article.summary,
                 'link': article.link,
                 'published': article.published,
-                'updated': article.updated
+                'updated': article.updated,
+                'source': article.source,
+                'og_image': article.og_image
             })
 
         # Prepare OpenAI request
@@ -51,7 +53,7 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
                     input=[
                         {
                             "role": "system",
-                            "content": "Tag each article with relevant categories and clean up the important information. Return valid JSON only."
+                            "content": "Tag each article with one or more of the following tags: ['Artificial Intelligence', 'Technology', 'Startups']. If it doesn't belong to one of these tags, discard it. Also, clean up the important information (remove HTML tags and other junk).",
                         },
                         {
                             "role": "user",
@@ -125,20 +127,20 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
     articles = article_collection.articles
     total_articles = len(articles)
     batch_size = 10
-    
+
     logger.info(f"Processing {total_articles} articles in batches of {batch_size}")
-    
+
     # Split articles into batches
     batches = [articles[i:i + batch_size] for i in range(0, total_articles, batch_size)]
     logger.info(f"Created {len(batches)} batches")
-    
+
     all_tagged_articles = []
-    
+
     for i, batch in enumerate(batches, 1):
         logger.info(f"Processing batch {i}/{len(batches)}")
-        
+
         batch_result = _process_batch(batch, i)
-        
+
         if batch_result and batch_result.articles:
             # Save this batch to database immediately
             try:
@@ -146,21 +148,21 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
                 logger.info(f"Saved batch {i} with {len(batch_result.articles)} articles to database")
             except Exception as e:
                 logger.error(f"Failed to save batch {i} to database: {e}")
-            
+
             all_tagged_articles.extend(batch_result.articles)
             logger.debug(f"Added {len(batch_result.articles)} articles from batch {i}")
         else:
             logger.error(f"Failed to process batch {i}, skipping")
             continue
-        
+
         # Add delay between batches to avoid rate limits
         if i < len(batches):
             logger.debug(f"Waiting {RETRY_DELAY} seconds before next batch")
             time.sleep(RETRY_DELAY)
-    
+
     if not all_tagged_articles:
         logger.error("No articles were successfully processed by OpenAI")
         return None
-    
+
     logger.info(f"Successfully processed {len(all_tagged_articles)} total articles across {len(batches)} batches")
     return ArticleCollection(articles=all_tagged_articles)

@@ -8,6 +8,7 @@ class Article(BaseModel):
     published: datetime.datetime | None = None
     updated: datetime.datetime | None = None
     source: str | None = None
+    og_image: str | None = None
     tags: list[str] = []
 
 class ArticleCollection(BaseModel):

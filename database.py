@@ -14,6 +14,8 @@ CREATE_TABLES_SQL = [
         link TEXT UNIQUE NOT NULL,
         published TEXT,
         updated TEXT,
+        source TEXT,
+        og_image TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """,
@@ -72,14 +74,16 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
             # Insert or update article
             cursor.execute("""
                 INSERT OR REPLACE INTO articles
-                (title, summary, link, published, updated)
-                VALUES (?, ?, ?, ?, ?)
+                (title, summary, link, published, updated, source, og_image)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 article.title,
                 article.summary,
                 article.link,
                 article.published,
-                article.updated
+                article.updated,
+                article.source,
+                getattr(article, 'og_image', None)
             ))
 
             # Get the article ID (for INSERT OR REPLACE, this gets the ID of the inserted/updated row)

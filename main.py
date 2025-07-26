@@ -8,20 +8,20 @@ import os
 def setup_logging():
     # Create logs directory if it doesn't exist
     os.makedirs('logs', exist_ok=True)
-    
+
     # Create formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
+
     # Set up root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    
+
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
-    
+
     # File handler with 24-hour rotation
     file_handler = TimedRotatingFileHandler(
         filename='logs/rss_processing.log',
@@ -52,6 +52,10 @@ urls = [
     "https://talkbusiness.net/feed/",
     "https://arkansasadvocate.com/feed/",
     "https://www.kark.com/feed/",
+    # "Arkansas" artificial intelligence
+    "https://www.google.com/alerts/feeds/12746746318701075297/3421192965394397903",
+    # "Arkansas" startup
+    "https://www.google.com/alerts/feeds/12746746318701075297/1492688489120319382",
 ]
 
 logger.info(f"Starting RSS processing for {len(urls)} URLs")
