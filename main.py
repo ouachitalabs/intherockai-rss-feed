@@ -16,18 +16,38 @@ sqlite3.register_converter("TIMESTAMP", lambda s: datetime.fromisoformat(s.decod
 from rss.ai import route_to_openai
 from rss.parse import fetch_new_articles
 
-url = 'https://www.google.com/alerts/feeds/12746746318701075297/17060129154597278148'
+urls = [
+    "https://arktimes.com/feed",
+    "https://www.arkansasbusiness.com/feed/",
+    "https://talkbusiness.net/feed/",
+    "https://arkansasadvocate.com/feed/",
+    "https://www.kark.com/feed/",
+]
 
-logger.info(f"Starting RSS processing for URL: {url}")
-new_articles = fetch_new_articles(url)
+logger.info(f"Starting RSS processing for {len(urls)} URLs")
 
-if not new_articles.articles:
-    logger.warning("No new articles found, exiting")
+# Collect articles from all URLs
+all_articles = []
+for url in urls:
+    logger.info(f"Processing URL: {url}")
+    new_articles = fetch_new_articles(url)
+    if new_articles.articles:
+        all_articles.extend(new_articles.articles)
+        logger.info(f"Found {len(new_articles.articles)} new articles from {url}")
+    else:
+        logger.warning(f"No new articles found from {url}")
+
+if not all_articles:
+    logger.warning("No new articles found from any URL, exiting")
     exit(1)
 
-logger.info(f"Found {len(new_articles.articles)} new articles")
+logger.info(f"Found {len(all_articles)} total new articles from all sources")
 
-tagged = route_to_openai(new_articles)
+# Create combined ArticleCollection for processing
+from api.models import ArticleCollection
+combined_articles = ArticleCollection(articles=all_articles)
+
+tagged = route_to_openai(combined_articles)
 
 if not tagged or not tagged.articles:
     logger.error("Failed to get tagged articles from OpenAI")
