@@ -36,8 +36,9 @@ CREATE_TABLES_SQL = [
         FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
         UNIQUE(article_id, tag_id)
     );
-    """
+    """,
 ]
+
 
 def _get_or_create_tag(cursor, tag_name):
     """Get existing tag ID or create new tag and return ID"""
@@ -51,6 +52,7 @@ def _get_or_create_tag(cursor, tag_name):
     # Create new tag
     cursor.execute("INSERT INTO tags (name) VALUES (?)", (tag_name,))
     return cursor.lastrowid
+
 
 def load_articles_to_db(tagged_data, db_path="articles.db"):
     logger.info(f"Connecting to database: {db_path}")
@@ -68,23 +70,28 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
     articles_loaded = 0
 
     # Insert articles and tags
-    logger.info(f"Processing {len(tagged_data.articles)} articles for database insertion")
+    logger.info(
+        f"Processing {len(tagged_data.articles)} articles for database insertion"
+    )
     for article in tagged_data.articles:
         try:
             # Insert or update article
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO articles
                 (title, summary, link, published, updated, source, og_image)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                article.title,
-                article.summary,
-                article.link,
-                article.published,
-                article.updated,
-                article.source,
-                getattr(article, 'og_image', None)
-            ))
+            """,
+                (
+                    article.title,
+                    article.summary,
+                    article.link,
+                    article.published,
+                    article.updated,
+                    article.source,
+                    getattr(article, "og_image", None),
+                ),
+            )
 
             # Get the article ID (for INSERT OR REPLACE, this gets the ID of the inserted/updated row)
             article_id = cursor.execute(
@@ -92,10 +99,14 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
             ).fetchone()[0]
 
             # Clear existing tags for this article (in case of update)
-            cursor.execute("DELETE FROM article_tags WHERE article_id = ?", (article_id,))
+            cursor.execute(
+                "DELETE FROM article_tags WHERE article_id = ?", (article_id,)
+            )
 
             # Process tags
-            logger.debug(f"Processing {len(article.tags)} tags for article: {article.title[:50]}")
+            logger.debug(
+                f"Processing {len(article.tags)} tags for article: {article.title[:50]}"
+            )
             for tag_name in article.tags:
                 if tag_name and tag_name.strip():
                     tag_name = tag_name.strip()
@@ -105,13 +116,18 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
 
                     # Link article to tag
                     try:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO article_tags (article_id, tag_id)
                             VALUES (?, ?)
-                        """, (article_id, tag_id))
+                        """,
+                            (article_id, tag_id),
+                        )
                     except sqlite3.IntegrityError:
                         # Tag already exists for this article, skip
-                        logger.debug(f"Tag '{tag_name}' already exists for article, skipping")
+                        logger.debug(
+                            f"Tag '{tag_name}' already exists for article, skipping"
+                        )
 
             articles_loaded += 1
 
@@ -129,25 +145,32 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
     conn.close()
 
     logger.info(f"Successfully loaded {articles_loaded} articles to database")
-    logger.info(f"Total articles in database: {article_count}, Total unique tags: {tag_count}")
+    logger.info(
+        f"Total articles in database: {article_count}, Total unique tags: {tag_count}"
+    )
+
 
 def get_articles_by_tag(tag_name, db_path="articles.db"):
     """Get all articles associated with a specific tag"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT a.id, a.title, a.summary, a.link, a.published, a.updated, a.created_at
         FROM articles a
         JOIN article_tags at ON a.id = at.article_id
         JOIN tags t ON at.tag_id = t.id
         WHERE t.name = ?
         ORDER BY a.created_at DESC
-    """, (tag_name,))
+    """,
+        (tag_name,),
+    )
 
     articles = cursor.fetchall()
     conn.close()
     return articles
+
 
 def get_tag_counts(db_path="articles.db"):
     """Get count of articles per tag"""
@@ -166,19 +189,23 @@ def get_tag_counts(db_path="articles.db"):
     conn.close()
     return tag_counts
 
+
 def get_popular_tags(limit=10, db_path="articles.db"):
     """Get most popular tags by article count"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT t.name, COUNT(at.article_id) as article_count
         FROM tags t
         JOIN article_tags at ON t.id = at.tag_id
         GROUP BY t.id, t.name
         ORDER BY article_count DESC
         LIMIT ?
-    """, (limit,))
+    """,
+        (limit,),
+    )
 
     popular_tags = cursor.fetchall()
     conn.close()

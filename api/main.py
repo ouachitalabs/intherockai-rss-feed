@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .models import Article, ArticleCollection
 
 app = FastAPI(
-    title="News Feed API", 
+    title="News Feed API",
     description="Read-only API for news feed with article pagination and tag filtering",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Add CORS middleware
@@ -23,41 +23,51 @@ app.add_middleware(
 
 DATABASE_PATH = "articles.db"
 
+
 def get_db_connection():
     """Get database connection with row factory for dict-like access"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def parse_datetime(date_str: Optional[str]) -> Optional[datetime.datetime]:
     """Parse datetime string from database"""
     if not date_str:
         return None
     try:
-        return datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        return datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return None
 
+
 def get_article_tags(article_id: int, conn: sqlite3.Connection) -> List[str]:
     """Get tags for a specific article"""
-    cursor = conn.execute("""
+    cursor = conn.execute(
+        """
         SELECT t.name 
         FROM tags t
         JOIN article_tags at ON t.id = at.tag_id
         WHERE at.article_id = ?
-    """, (article_id,))
+    """,
+        (article_id,),
+    )
     return [row["name"] for row in cursor.fetchall()]
+
 
 @app.get("/")
 def read_root():
     """Root endpoint with API information"""
     return {"message": "News Feed API", "version": "1.0.0"}
 
+
 @app.get("/articles", response_model=ArticleCollection)
 def get_articles(
-    limit: int = Query(default=50, le=500, description="Maximum number of articles to return"),
+    limit: int = Query(
+        default=50, le=500, description="Maximum number of articles to return"
+    ),
     offset: int = Query(default=0, ge=0, description="Number of articles to skip"),
-    tag: Optional[str] = Query(default=None, description="Filter by tag name")
+    tag: Optional[str] = Query(default=None, description="Filter by tag name"),
 ):
     """Get paginated articles for news feed with optional tag filtering"""
     conn = get_db_connection()
@@ -81,7 +91,7 @@ def get_articles(
                 LIMIT ? OFFSET ?
             """
             cursor = conn.execute(query, (limit, offset))
-        
+
         articles = []
         for row in cursor.fetchall():
             tags = get_article_tags(row["id"], conn)
@@ -93,10 +103,10 @@ def get_articles(
                 updated=parse_datetime(row["updated"]),
                 source=row["source"],
                 og_image=row["og_image"],
-                tags=tags
+                tags=tags,
             )
             articles.append(article)
-        
+
         return ArticleCollection(articles=articles)
     finally:
         conn.close()
@@ -114,7 +124,10 @@ def get_tags():
             GROUP BY t.id, t.name
             ORDER BY article_count DESC, t.name
         """)
-        tags_with_counts = [{"name": row["name"], "count": row["article_count"]} for row in cursor.fetchall()]
+        tags_with_counts = [
+            {"name": row["name"], "count": row["article_count"]}
+            for row in cursor.fetchall()
+        ]
         return {"tags": tags_with_counts}
     finally:
         conn.close()

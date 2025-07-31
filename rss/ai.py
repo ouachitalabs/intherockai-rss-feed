@@ -31,15 +31,17 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
         # Convert articles to dict format for OpenAI
         articles_data = []
         for article in articles_batch:
-            articles_data.append({
-                'title': article.title,
-                'summary': article.summary,
-                'link': article.link,
-                'published': article.published,
-                'updated': article.updated,
-                'source': article.source,
-                'og_image': article.og_image
-            })
+            articles_data.append(
+                {
+                    "title": article.title,
+                    "summary": article.summary,
+                    "link": article.link,
+                    "published": article.published,
+                    "updated": article.updated,
+                    "source": article.source,
+                    "og_image": article.og_image,
+                }
+            )
 
         # Prepare OpenAI request
         articles_json = json.dumps(articles_data, indent=2, default=str)
@@ -55,16 +57,15 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
                             "role": "system",
                             "content": "Tag each article with one or more of the following tags: ['Artificial Intelligence', 'Technology', 'Startups']. If it doesn't belong to one of these tags, discard it. Also, clean up the important information (remove HTML tags and other junk).",
                         },
-                        {
-                            "role": "user",
-                            "content": articles_json
-                        }
+                        {"role": "user", "content": articles_json},
                     ],
-                    text_format=ArticleCollection
+                    text_format=ArticleCollection,
                 )
 
-                if not response or not hasattr(response, 'output_parsed'):
-                    logger.error(f"Invalid response from OpenAI for batch {batch_num} on attempt {attempt + 1}")
+                if not response or not hasattr(response, "output_parsed"):
+                    logger.error(
+                        f"Invalid response from OpenAI for batch {batch_num} on attempt {attempt + 1}"
+                    )
                     if attempt < MAX_RETRIES - 1:
                         time.sleep(RETRY_DELAY)
                         continue
@@ -73,34 +74,46 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
                 tagged_articles = response.output_parsed
 
                 if not isinstance(tagged_articles, ArticleCollection):
-                    logger.error(f"OpenAI returned invalid ArticleCollection format for batch {batch_num}")
+                    logger.error(
+                        f"OpenAI returned invalid ArticleCollection format for batch {batch_num}"
+                    )
                     return None
 
-                logger.info(f"Successfully processed batch {batch_num} with {len(tagged_articles.articles)} articles")
+                logger.info(
+                    f"Successfully processed batch {batch_num} with {len(tagged_articles.articles)} articles"
+                )
                 return tagged_articles
 
             except openai.RateLimitError as e:
-                logger.warning(f"OpenAI rate limit hit for batch {batch_num} on attempt {attempt + 1}: {e}")
+                logger.warning(
+                    f"OpenAI rate limit hit for batch {batch_num} on attempt {attempt + 1}: {e}"
+                )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_DELAY * (attempt + 1))
                     continue
                 raise
 
             except openai.APIError as e:
-                logger.error(f"OpenAI API error for batch {batch_num} on attempt {attempt + 1}: {e}")
+                logger.error(
+                    f"OpenAI API error for batch {batch_num} on attempt {attempt + 1}: {e}"
+                )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_DELAY)
                     continue
                 raise
 
             except Exception as e:
-                logger.error(f"Unexpected error calling OpenAI for batch {batch_num} on attempt {attempt + 1}: {e}")
+                logger.error(
+                    f"Unexpected error calling OpenAI for batch {batch_num} on attempt {attempt + 1}: {e}"
+                )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_DELAY)
                     continue
                 break
 
-        logger.error(f"Failed to get valid response from OpenAI for batch {batch_num} after {MAX_RETRIES} attempts")
+        logger.error(
+            f"Failed to get valid response from OpenAI for batch {batch_num} after {MAX_RETRIES} attempts"
+        )
         return None
 
     except Exception as e:
@@ -108,7 +121,9 @@ def _process_batch(articles_batch: list, batch_num: int) -> Optional[ArticleColl
         return None
 
 
-def route_to_openai(article_collection: ArticleCollection, db_path: str = "articles.db") -> Optional[ArticleCollection]:
+def route_to_openai(
+    article_collection: ArticleCollection, db_path: str = "articles.db"
+) -> Optional[ArticleCollection]:
     """Send ArticleCollection to OpenAI for tagging in batches of 10 and save each batch to database"""
     if not client:
         logger.error("OpenAI client not initialized")
@@ -121,6 +136,7 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
     # Import database functions
     import sys
     import os
+
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from database import load_articles_to_db
 
@@ -131,7 +147,9 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
     logger.info(f"Processing {total_articles} articles in batches of {batch_size}")
 
     # Split articles into batches
-    batches = [articles[i:i + batch_size] for i in range(0, total_articles, batch_size)]
+    batches = [
+        articles[i : i + batch_size] for i in range(0, total_articles, batch_size)
+    ]
     logger.info(f"Created {len(batches)} batches")
 
     all_tagged_articles = []
@@ -145,7 +163,9 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
             # Save this batch to database immediately
             try:
                 load_articles_to_db(batch_result, db_path)
-                logger.info(f"Saved batch {i} with {len(batch_result.articles)} articles to database")
+                logger.info(
+                    f"Saved batch {i} with {len(batch_result.articles)} articles to database"
+                )
             except Exception as e:
                 logger.error(f"Failed to save batch {i} to database: {e}")
 
@@ -164,5 +184,7 @@ def route_to_openai(article_collection: ArticleCollection, db_path: str = "artic
         logger.error("No articles were successfully processed by OpenAI")
         return None
 
-    logger.info(f"Successfully processed {len(all_tagged_articles)} total articles across {len(batches)} batches")
+    logger.info(
+        f"Successfully processed {len(all_tagged_articles)} total articles across {len(batches)} batches"
+    )
     return ArticleCollection(articles=all_tagged_articles)

@@ -2,15 +2,19 @@ import sqlite3
 import logging
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+from api.models import ArticleCollection
 import os
+
 
 # Configure logging with both console and file handlers
 def setup_logging():
     # Create logs directory if it doesn't exist
-    os.makedirs('logs', exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
 
     # Create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Set up root logger
     root_logger = logging.getLogger()
@@ -24,15 +28,16 @@ def setup_logging():
 
     # File handler with 24-hour rotation
     file_handler = TimedRotatingFileHandler(
-        filename='logs/rss_processing.log',
-        when='midnight',
+        filename="logs/rss_processing.log",
+        when="midnight",
         interval=1,
         backupCount=1,  # Keep only 1 backup (24h)
-        encoding='utf-8'
+        encoding="utf-8",
     )
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
+
 
 # Set up logging
 setup_logging()
@@ -44,7 +49,6 @@ sqlite3.register_converter("TIMESTAMP", lambda s: datetime.fromisoformat(s.decod
 
 from rss.ai import route_to_openai
 from rss.parse import fetch_new_articles
-from database import get_articles_by_tag, get_tag_counts, get_popular_tags
 
 urls = [
     "https://arktimes.com/feed",
@@ -78,7 +82,6 @@ if not all_articles:
 logger.info(f"Found {len(all_articles)} total new articles from all sources")
 
 # Create combined ArticleCollection for processing
-from api.models import ArticleCollection
 combined_articles = ArticleCollection(articles=all_articles)
 
 tagged = route_to_openai(combined_articles)
@@ -88,48 +91,4 @@ if not tagged or not tagged.articles:
     exit(1)
 
 logger.info(f"Successfully tagged {len(tagged.articles)} articles")
-
-logger.info("Loading articles to database")
-
-
-# Note: Articles are now saved to database after each batch in route_to_openai()
-logger.info("Articles have been saved to database after each batch processing")
-
-# Generate analytics
-logger.info("Generating tag analytics")
-
-# Show tag counts
-tag_counts = get_tag_counts()
-logger.info(f"Found {len(tag_counts)} unique tags")
-
-# Show popular tags
-popular = get_popular_tags(5)
-if popular:
-    logger.info("Top 5 popular tags:")
-    for tag_name, count in popular:
-        logger.info(f"  {tag_name}: {count} articles")
-
-    # Show articles for most popular tag
-    top_tag = popular[0][0]
-    articles = get_articles_by_tag(top_tag)
-    logger.info(f"Found {len(articles)} articles tagged with '{top_tag}'")
-
-    if articles:
-        logger.debug(f"Sample articles for '{top_tag}':")
-        for article in articles[:3]:  # Show first 3
-            logger.debug(f"  - {article[1][:60]}...")
-
-# Send email notification if new articles were processed
-if all_articles:
-    logger.info("Sending email notification for new articles")
-    try:
-        from email_notifications import send_new_articles_email
-        email_sent = send_new_articles_email(all_articles)
-        if email_sent:
-            logger.info("Email notification sent successfully")
-        else:
-            logger.warning("Email notification failed to send")
-    except Exception as e:
-        logger.error(f"Error sending email notification: {e}")
-
 logger.info("RSS processing completed successfully")

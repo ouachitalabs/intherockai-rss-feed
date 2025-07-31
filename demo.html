@@ -216,10 +216,10 @@
             </ul>
             <button class="clear-filter" onclick="resetFilter()">Clear Filter</button>
         </div>
-        
+
         <div class="container">
             <h1>News Feed API Demo</h1>
-            
+
             <div class="filters">
                 <label for="tagFilter">Filter by tag:</label>
                 <select id="tagFilter">
@@ -230,7 +230,7 @@
             </div>
 
             <div id="articles"></div>
-            
+
             <div class="pagination">
                 <button id="loadMoreBtn" onclick="loadMore()" disabled>Load More</button>
             </div>
@@ -238,7 +238,7 @@
     </div></body>
 
     <script>
-        const API_BASE = '/api';
+        const API_BASE = 'http://localhost:8000';
         let currentOffset = 0;
         let currentTag = '';
         let isLoading = false;
@@ -250,15 +250,15 @@
                     fetch(`${API_BASE}/tags`),
                     fetch(`${API_BASE}/health`)
                 ]);
-                
+
                 const tagsData = await tagsResponse.json();
                 const healthData = await healthResponse.json();
                 const select = document.getElementById('tagFilter');
                 const tagList = document.getElementById('tagList');
-                
+
                 // Get total article count from health endpoint
                 document.getElementById('totalCount').textContent = healthData.article_count;
-                
+
                 // Populate dropdown
                 tagsData.tags.forEach(tag => {
                     const option = document.createElement('option');
@@ -266,7 +266,7 @@
                     option.textContent = tag.name;
                     select.appendChild(option);
                 });
-                
+
                 // Populate sidebar
                 tagsData.tags.forEach(tag => {
                     const li = document.createElement('li');
@@ -286,7 +286,7 @@
         // Load articles
         async function loadArticles(reset = false) {
             if (isLoading) return;
-            
+
             isLoading = true;
             const loadMoreBtn = document.getElementById('loadMoreBtn');
             loadMoreBtn.disabled = true;
@@ -310,7 +310,7 @@
                 const data = await response.json();
 
                 displayArticles(data.articles, reset);
-                
+
                 // Enable load more if we got a full batch
                 if (data.articles.length === 10) {
                     loadMoreBtn.disabled = false;
@@ -332,7 +332,7 @@
         // Display articles
         function displayArticles(articles, reset = false) {
             const articlesDiv = document.getElementById('articles');
-            
+
             if (reset) {
                 articlesDiv.innerHTML = '';
             }
@@ -345,14 +345,14 @@
             articles.forEach(article => {
                 const articleDiv = document.createElement('div');
                 articleDiv.className = 'article';
-                
-                const publishedDate = article.published ? 
+
+                const publishedDate = article.published ?
                     new Date(article.published).toLocaleDateString() : 'Unknown date';
 
-                const imageHtml = article.og_image ? 
-                    `<img src="${article.og_image}" alt="${article.title}" class="article-image" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/9/9d/Flag_of_Arkansas.svg'">` : 
+                const imageHtml = article.og_image ?
+                    `<img src="${article.og_image}" alt="${article.title}" class="article-image" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/9/9d/Flag_of_Arkansas.svg'">` :
                     `<img src="https://upload.wikimedia.org/wikipedia/commons/9/9d/Flag_of_Arkansas.svg" alt="Arkansas Flag" class="article-image">`;
-                
+
                 articleDiv.innerHTML = `
                     ${imageHtml}
                     <div class="article-content">
@@ -365,7 +365,7 @@
                         ${article.source ? `<div class="source">${article.source}</div>` : ''}
                     </div>
                 `;
-                
+
                 articlesDiv.appendChild(articleDiv);
             });
         }
@@ -379,12 +379,12 @@
         function selectTag(tagName) {
             // Update dropdown
             document.getElementById('tagFilter').value = tagName;
-            
+
             // Update sidebar active state
             document.querySelectorAll('.tag-item').forEach(item => {
                 item.classList.remove('active');
             });
-            
+
             if (tagName === '') {
                 document.querySelector('.tag-item').classList.add('active');
             } else {
@@ -394,7 +394,7 @@
                     }
                 });
             }
-            
+
             loadArticles(true);
         }
 
