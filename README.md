@@ -1,48 +1,34 @@
-# Services built for local AI meetup (intherock.ai)
+# InTheRock.ai RSS Feed Service
 
-## Tagging service
+AI-powered news aggregation and tagging service for the InTheRock.ai local AI meetup.
 
-Input: RSS feed
-Output: Database records of RSS content + AI generated tags
+## Features
 
-### Purpose
+- **RSS Feed Processing**: Ingests RSS feeds and converts to structured data
+- **AI Tagging**: Uses OpenAI to generate relevant tags for articles
+- **SQLite Storage**: Simple database for articles and tags
+- **REST API**: Public endpoints for article and tag queries
+- **Email Notifications**: Sends notifications when new articles are processed
 
-- Ingest RSS feeds
-- convert to JSON
-- send JSON to OpenAI for tagging
-- store information in database
+## Development
 
-### Details
-
-Simple cron job scheduling (open to alternatives)
-Python RSS -> JSON conversion using RSS feed library
-Python sqlite3 database storage
-
-Main two queries that will be coming from the website:
-(Open to data model suggestions here, but ideally a single table for now)
-
-- `select * from feed where tags contains tag;`
-- `select tag, count(1) as n from feed;`
-
-## API
-
-The api exposes the data that is produced by the tagging service to users on the website.
-
-### Endpoints
-
-Fetch articles that relate to one or more tags:
-```
-GET /articles/?tag=...&tag=...
+Activate virtual environment:
+```bash
+. .venv/bin/activate
 ```
 
-Fetch all tags and their counts:
-```
-GET /tags/
+Run commands:
+```bash
+make help      # Show available commands
+make install   # Install/update dependencies
+make api       # Start the API server
 ```
 
-### Auth
+## API Endpoints
 
-No auth, all public api endpoints and database.
-This is not mission critical stuff and we want people to have access to it.
-We will address caching and other potential issues like that when the time comes.
-For now, focus on an MVP.
+- `GET /articles/?tag=...&tag=...` - Fetch articles by tags
+- `GET /tags/` - Get all tags with counts
+
+## Deployment
+
+Deployed on DigitalOcean as `intherock-api.service` with nginx reverse proxy.
