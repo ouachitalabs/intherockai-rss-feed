@@ -1,6 +1,8 @@
 import sqlite3
 import logging
 from datetime import datetime
+import openai
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ def _get_or_create_tag(cursor, tag_name):
     cursor.execute("INSERT INTO tags (name) VALUES (?)", (tag_name,))
     return cursor.lastrowid
 
-def load_articles_to_db(tagged_data, db_path="articles.db"):
+def load_articles_to_db(tagged_data, db_path="articles.db", check_duplicates=True, similarity_threshold=0.70):
     logger.info(f"Connecting to database: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -65,12 +67,45 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
     for table_sql in CREATE_TABLES_SQL:
         cursor.execute(table_sql)
 
+    # Initialize embeddings if checking duplicates
+    if check_duplicates:
+        try:
+            from rss.embeddings import (
+                initialize_vec_extension,
+                check_duplicate,
+                store_embedding,
+                generate_embedding
+            )
+            initialize_vec_extension(conn)
+            client = openai.Client()
+            logger.info("Initialized embedding-based duplicate detection")
+        except Exception as e:
+            logger.warning(f"Could not initialize embeddings, continuing without duplicate detection: {e}")
+            check_duplicates = False
+
     articles_loaded = 0
+    duplicates_skipped = 0
 
     # Insert articles and tags
     logger.info(f"Processing {len(tagged_data.articles)} articles for database insertion")
     for article in tagged_data.articles:
         try:
+            # Check for semantic duplicates if enabled
+            if check_duplicates:
+                duplicate_info = check_duplicate(
+                    conn,
+                    article.title,
+                    article.summary,
+                    similarity_threshold,
+                    client
+                )
+                
+                if duplicate_info:
+                    duplicate_id, similarity = duplicate_info
+                    logger.info(f"Skipping duplicate article (similar to ID {duplicate_id}, similarity: {similarity:.3f}): {article.title[:50]}...")
+                    duplicates_skipped += 1
+                    continue
+            
             # Insert or update article
             cursor.execute("""
                 INSERT OR REPLACE INTO articles
@@ -90,6 +125,16 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
             article_id = cursor.execute(
                 "SELECT id FROM articles WHERE link = ?", (article.link,)
             ).fetchone()[0]
+            
+            # Store embedding if duplicate checking is enabled
+            if check_duplicates:
+                article_text = f"{article.title} {article.summary or ''}"
+                embedding = generate_embedding(article_text, client)
+                if embedding:
+                    store_embedding(conn, article_id, embedding)
+                    logger.debug(f"Stored embedding for article {article_id}")
+                else:
+                    logger.warning(f"Could not generate embedding for article {article_id}")
 
             # Clear existing tags for this article (in case of update)
             cursor.execute("DELETE FROM article_tags WHERE article_id = ?", (article_id,))
@@ -129,6 +174,8 @@ def load_articles_to_db(tagged_data, db_path="articles.db"):
     conn.close()
 
     logger.info(f"Successfully loaded {articles_loaded} articles to database")
+    if duplicates_skipped > 0:
+        logger.info(f"Skipped {duplicates_skipped} duplicate articles")
     logger.info(f"Total articles in database: {article_count}, Total unique tags: {tag_count}")
 
 def get_articles_by_tag(tag_name, db_path="articles.db"):
