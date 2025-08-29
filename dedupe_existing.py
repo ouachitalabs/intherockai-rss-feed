@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 SIMILARITY_THRESHOLD = 0.70  # Adjusted based on testing - articles about same topic score 0.6-0.75
-DB_PATH = "articles_server.db"
+DB_PATH = "articles.db"
 BACKUP_PATH = f"articles.db.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
 
